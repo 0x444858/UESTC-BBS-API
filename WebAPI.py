@@ -62,7 +62,7 @@ class WebAPI:
 
     def update_formhash(self):
         """
-        更新formhash
+        更新 formhash
 
         :return:
             成功 True，失败 False
@@ -80,7 +80,7 @@ class WebAPI:
 
     def update_authorization(self):
         """
-        更新authorization
+        更新 authorization
 
         :return:
             bool: 成功 True，失败 False
@@ -148,15 +148,8 @@ class WebAPI:
                 - reply_count (int): 回复总数
                 - author (str): 楼主用户名
                 - uid (int): 楼主uid
-        :raise: HepanException: 帖子不存在/被删除，或无权访问
-        :note:
-            以下情况下，该函数与 Old.get_thread_info() 的返回值不同
-            1. 当存在点评时， reply_count 的值不同。
-                Old.get_thread_info()['reply_count'] 为评论和点评总数
-                本函数 reply_count 仅为评论数
-            2. 当首段不为无格式纯文本时，first_paragraph 可能不同
-                一般而言，当不同时，本函数返回的内容更长
-                当首段为无格式纯文本时，能保证两个函数返回的 first_paragraph 相同
+        :raise:
+            HepanException: 帖子不存在/被删除，或无权访问
         """
         url = f'https://bbs.uestc.edu.cn/star/api/v1/post/list?thread_id={tid}&page=1&thread_details=1'
         try:
@@ -185,6 +178,28 @@ class WebAPI:
                 return None
 
     def get_reply_page(self, tid, page=1):
+        """
+        获取一页回复
+
+        :param tid: 帖子tid
+        :param page: 要获取第几页，默认1
+
+        :return:
+            dict:
+                - hasNext (bool): 是否还有下一页
+                - replies (list): 回复列表
+                    - dict: 单个回复详细信息
+                        - position (int): 楼层
+                        - pid (int): 帖子pid
+                        - author (str): 回复发送者用户名
+                        - uid (int): 回复者uid
+                        - time (int): 回复时间戳（秒）
+                        - content (str): 回复具体内容
+        :raise:
+            HepanException: 帖子不存在/被删除，或无权访问
+        :note:
+            第一页第一个实际上为主帖
+        """
         url = f'https://bbs.uestc.edu.cn/star/api/v1/post/list?thread_id={tid}&page={page}&thread_details=1'
         try:
             r = self.session.get(url)
@@ -221,6 +236,23 @@ class WebAPI:
                 return None
 
     def get_reply_all(self, tid, pageLimit=0):
+        """
+        获取指定主题帖所有回复
+
+        :param tid: 帖子tid
+        :param pageLimit: 最多获取几页，默认20，即400楼
+        :return:
+            list: 回复列表
+                - dict: 存储单个回复信息的字典
+                    - position (str): 楼层
+                    - pid (int): 回复pid
+                    - author (str): 回复者用户名
+                    - uid (int): 回复者uid
+                    - time (int): 回复时间戳（秒）
+                    - content (str): 回复内容
+        :raise:
+            HepanException: 帖子不存在/被删除，或无权访问
+        """
         replies = []
         page = 1
         while True:
@@ -232,3 +264,55 @@ class WebAPI:
             page += 1
         return replies
 
+    def get_top_10_post(self):
+        """
+        获取旧版主页的最新回复，最新发表，今日热门，河畔活动，生活专区，精华展示 前10帖
+
+        :return:
+            dict: 数据集
+                - new_reply (list): 最新回复列表
+                    - tid (int): 帖子tid
+                    - title (str): 帖子标题
+                    - uid (int): 作者uid
+                    - uname (str): 作者用户名
+                - new_post (list): 最新回复列表
+                    ! 同 new_reply
+                - hot (list): 今日热门列表
+                    ! 同 new_reply
+                - activity (list): 河畔活动
+                    ! 同 new_reply
+                - live (list): 生活专区
+                    ! 同 new_reply
+                - show (list): 精华展示
+                    ! 同 new_reply
+        """
+        url = 'https://bbs.uestc.edu.cn'
+        r = self.session.get(url)
+        modes = {'new_reply': 'portal_block_66_content',  # 最新回复
+                 'new_post': 'portal_block_67_content',  # 最新发表
+                 'hot': 'portal_block_68_content',  # 今日热门
+                 'activity': 'portal_block_97_content',  # 河畔活动
+                 'live': 'portal_block_96_content',  # 生活专区
+                 'show': 'portal_block_95_content'  # 精华展示
+                 }
+        result = {}
+        soup = BeautifulSoup(r.text, 'html.parser')
+        for key, target in modes.items():
+            li_elements = soup.find(id=target).find_all('li')
+            temp = []
+            for li in li_elements:
+                em_tag = li.find('em')
+                a_em = em_tag.find('a') if em_tag else None
+                a_title = li.find('a', title=True)
+                uid = int(a_em['href'].split('=')[-1]) if a_em else None
+                uname = a_em.text.strip() if a_em else ''
+                tid = int(a_title['href'].split('=')[-1])
+                title = a_title['title']
+                temp.append({
+                    'tid': tid,
+                    'title': title,
+                    'uid': uid,
+                    'uname': uname
+                })
+            result[key] = temp
+        return result
