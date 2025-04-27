@@ -316,3 +316,41 @@ class WebAPI:
                 })
             result[key] = temp
         return result
+
+    def get_darkroom(self):
+        """
+        获取小黑屋列表
+
+        :return:
+            list: 小黑屋用户列表
+                - dict: 用户信息
+                    - name (str): 用户名
+                    - uid (int): 用户uid
+                    - action (str): 操作行为
+                    - expiration (str): 过期时间
+                    - time (str): 操作时间
+                    - reason (str): 操作理由
+        """
+        url = 'https://bbs.uestc.edu.cn/forum.php?mod=misc&action=showdarkroom'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        table = soup.find('table', id='darkroomtable')
+        rows = table.select('tr[id^="darkroomuid_"]')
+        result = []
+        for i in rows:
+            td = i.find_all('td')
+            name = td[0].text.strip()
+            uid = int(i['id'][12:])
+            action = td[1].text.strip()
+            expiration = td[2].text.strip()
+            time = td[3].text.strip()
+            reason = td[4].text.strip()
+            result.append({
+                'name': name,
+                'uid': uid,
+                'action': action,
+                'expiration': expiration,
+                'time': time,
+                'reason': reason
+            })
+        return result

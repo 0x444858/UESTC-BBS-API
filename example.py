@@ -3,7 +3,6 @@ import WebAPI
 username = 'your_username'
 password = 'your_password'
 
-
 # 旧版API
 api = WebAPI.WebAPI(username, password)
 tid = 2287221
@@ -12,4 +11,5 @@ print('api.get_reply_page(tid) :', api.get_reply_page(tid))  # 获取单页回�
 print('api.get_reply_all(tid) :', api.get_reply_all(tid))  # 获取帖子所有回复，默认限制20页（400楼）
 print('api.get_reply_all(tid, 0) :', api.get_reply_all(tid, 0))  # 获取帖子所有回复，显式取消限制
 # 除了散水帖，一般帖子很难超过400楼，建议保留默认限制
-
+print('api.get_top_10_post() :', api.get_top_10_post())  # 获取最新回复，最新发表，今日热门，河畔活动，生活专区，精华展示 前10帖
+print('api.get_darkroom() :', api.get_darkroom())  # 获取小黑屋信息
