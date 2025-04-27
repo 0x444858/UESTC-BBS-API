@@ -354,3 +354,260 @@ class WebAPI:
                 'reason': reason
             })
         return result
+
+    def get_user_rank(self, sub_rank, order=''):
+        """
+        获取用户排行榜
+
+        :param sub_rank: 子排行榜
+        :param order: 排序方式/类别
+
+        :return:
+            dict:
+                - notice (str): 提示信息
+                - data (list): 排行榜
+                    - dict: 单个用户数据
+                        - rank (int): 排名
+                        - name (str): 用户名
+                        - uid (int): 用户uid
+                        - msg (str): 相关信息
+        """
+        """
+        常用值
+        sub_rank
+            = 'credit': 积分
+                order
+                    = 'all': 全部
+                    = 1: 威望
+                    = 2: 水滴
+                    = 6: 奖励券
+            = ‘post’: 发帖数
+                order
+                    = 'posts': 发帖
+                    = 'digestposts': 精华
+                    = 'thismonth': 最近30天发帖数
+                    = 'today': 最近24小时发帖数
+            = 'onlinetime': 在线时间
+                order
+                    = 'thismonth': 本月
+                    = 'all': 全部
+            = 'water': 人气
+                order
+                    = 30: 最近30天
+                    = 202503: 2025年3月
+                    = 202502: 2025年2月
+                    ...
+        """
+
+        url = f'https://bbs.uestc.edu.cn/misc.php?mod=ranklist&type=member&view={sub_rank}&orderby={order}'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        rows = soup.find_all(class_='bbda cl')
+        data = []
+        for i in rows:
+            ranknum = i.find(class_='ranknum')
+            if rank := ranknum.find('img'):
+                rank = rank['alt']
+            else:
+                rank = ranknum.text.strip()
+            user_dt = i.find('dt').find('a')
+            name = i.contents[-4].text.strip()
+            uid = int(user_dt['href'].split('=')[-1])
+            msg = i.contents[-2].text.strip()
+            data.append({
+                'rank': int(rank),
+                'name': name,
+                'uid': uid,
+                'msg': msg
+            })
+        notice = soup.find(class_='notice').text.strip()
+        return {'notice': notice, 'data': data}
+
+    def get_thread_rank(self, sub_rank, order='all'):
+        """
+        获取帖子排行榜
+
+        :param sub_rank: 子排行榜
+        :param order: 排序方式/类别
+
+        :return:
+            dict:
+                - notice: 提示信息
+                - data (list): 排行榜
+                    - dict: 单个帖子数据
+                        - rank (int): 排名
+                        - title (str): 帖子标题
+                        - forum (str): 帖子所在板块名称
+                        - author (str): 发帖人
+                        - uid (int): 发帖人uid
+                        - time (str): 发帖时间
+                        - count (int): 排序的数据
+        :note:
+            count: 按回复排时，count为回复数，以此类推
+        """
+        """
+        常用值
+        sub_rank
+            = 'replies': 回复
+                order
+                    = 'all': 全部
+                    = 'thisweek': 本周
+                    = 'thismonth': 本月
+                    = 'today': 今日
+            = 'views': 查看
+                order
+                    同 sub_rank = 'replies'
+            = 'favtimes': 收藏
+                order
+                    同 sub_rank = 'replies'
+            = 'heats': 热度
+                order
+                    同 sub_rank = 'replies'
+        """
+        url = f'https://bbs.uestc.edu.cn/misc.php?mod=ranklist&type=thread&view={sub_rank}&orderby={order}'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        rows = soup.find('table').find_all('tr')
+        data = []
+        for i in rows[1:]:
+            ranknum = i.find('td', class_='icn')
+            if rank := ranknum.find('img'):
+                rank = rank['alt']
+            else:
+                rank = ranknum.text.strip()
+            title = i.find('th').text.strip()
+            forum = i.find('td', class_='frm').text.strip()
+            thread_i = i.find('td', class_='by')
+            auth_i = thread_i.find('a')
+            author = auth_i.text.strip()
+            uid = int(auth_i['href'].split('=')[-1])
+            time = thread_i.find('em').text.strip()
+            count = i.contents[-2].text.strip()
+            data.append({
+                'rank': int(rank),
+                'title': title,
+                'forum': forum,
+                'author': author,
+                'uid': uid,
+                'time': time,
+                'count': int(count)
+            })
+        notice = soup.find('div', class_='notice').text.strip()
+        return {'notice': notice, 'data': data}
+
+    def get_pool_rank(self, sub_rank, order=''):
+        """
+        获取投票贴排行榜
+
+        :param sub_rank: 子排行榜
+        :param order: 排序方式/类别
+
+        :return:
+            dict:
+                - notice: 提示信息
+                - data (list): 排行榜
+                    - dict: 单个帖子数据
+                        - rank (int): 排名
+                        - author (str): 发帖人
+                        - uid (int): 发帖人uid
+                        - title (str): 帖子标题
+                        - tid (int): 帖子tid
+                        - count (int): 排序的数据
+                        - time (str): 发帖时间
+                        - voters (int): 投票人数
+        :note:
+            count: 按热度排时，count为热度值
+        """
+        """
+        常用值
+        sub_rank
+            = 'heats': 热度
+                order
+                    = 'all': 全部
+                    = 'thisweek': 本周
+                    = 'thismonth': 本月
+                    = 'today': 今日
+        """
+        url = f'https://bbs.uestc.edu.cn/misc.php?mod=ranklist&type=poll&view={sub_rank}&orderby={order}'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        table = soup.find('ul', class_='el pll')
+        rows = table.find_all('li')
+        data = []
+        for i in rows:
+            ranknum = i.find('div', class_='t')
+            if not ranknum:
+                continue
+            if rank := ranknum.find('img'):
+                rank = rank['alt']
+            else:
+                rank = ranknum.text.strip()
+            auth_i = i.find(class_='mtn').find('a')
+            author = auth_i.text.strip()
+            uid = int(auth_i['href'].split('=')[-1])
+            thread_i = i.find(class_='h').find('a')
+            title = thread_i.text.strip()
+            tid = int(thread_i['href'].split('=')[-1])
+            extra_info = i.find(class_='mtn xg1')
+            count = extra_info.contents[0].strip()[3:]
+            time = extra_info.contents[-1].strip()
+            voters = i.find(class_='s y').find('span').text.strip()
+            data.append({
+                'rank': int(rank),
+                'author': author,
+                'uid': uid,
+                'title': title,
+                'tid': tid,
+                'count': count,
+                'time': time,
+                'voters': int(voters)
+            })
+        notice = soup.find('div', class_='notice').text.strip()
+        return {'notice': notice, 'data': data}
+
+    def get_forum_rank(self, sub_rank):
+        """
+        获取板块排行榜
+
+        :param sub_rank: 子排行榜
+
+        :return:
+            dict:
+                - notice: 提示信息
+                - data (list): 排行榜
+                    - dict: 单个板块数据
+                        - rank (int): 排名
+                        - forum (str): 板块
+                        - count (int): 排序的数据
+        :note:
+            count: 按发帖排时，count为发帖数，以此类推
+        """
+        """
+        常用值
+        sub_rank
+            = 'threads': 发帖
+            = 'post': 回复
+            = 'today': 最近24小时发帖
+        """
+        url = f'https://bbs.uestc.edu.cn/misc.php?mod=ranklist&type=forum&view={sub_rank}'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        rows = soup.find('table').find_all('tr')
+        data = []
+        for i in rows[1:]:
+            ranknum = i.find('td', class_='icn')
+            if rank := ranknum.find('img'):
+                rank = rank['alt']
+            else:
+                rank = ranknum.text.strip()
+            forum = i.find('th').text.strip()
+            count = i.contents[-2].text.strip()
+            data.append(
+                {
+                    'rank': int(rank),
+                    'forum': forum,
+                    'count': int(count)
+                }
+            )
+        notice = soup.find('div', class_='notice').text.strip()
+        return {'notice': notice, 'data': data}
