@@ -635,3 +635,134 @@ class WebAPI:
             )
         notice = soup.find('div', class_='notice').text.strip()
         return {'notice': notice, 'data': data}
+
+    def get_task_list(self, mode='new'):
+        """
+        获取任务列表
+
+        :param mode: 模式，new/doing/done，默认 new
+
+        :return:
+            list: 任务列表
+                - dict: 单个任务信息
+                    - name (str): 任务名称
+                    - id (int): 任务id
+                    - description (str): 任务描述
+                    - reward (str): 任务奖励
+        """
+        url = f'https://bbs.uestc.edu.cn/home.php?mod=task&item={mode}'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        table = soup.find('div', class_='bm bw0').find('table')
+        if not table:
+            return []
+        rows = table.find_all('tr')
+        result = []
+        for i in rows:
+            task_i = i.find('td', class_='bbda ptm pbm')
+            task_i_a = task_i.find('a')
+            name = task_i_a.text.strip()
+            id = int(task_i_a['href'].split('=')[-1])
+            task_i_p = task_i.find('p')
+            description = task_i_p.text.strip()
+            reward = i.find('td', class_='xi1 bbda hm').text.strip()
+            result.append({
+                'name': name,
+                'id': id,
+                'description': description,
+                'reward': reward
+            })
+        return result
+
+    def apply_task(self, task_id):
+        """
+        申请任务
+
+        :param task_id: 任务id
+
+        :return
+            tuple:
+                - bool: 是否成功
+                - str: 提示信息
+        """
+        url = f'https://bbs.uestc.edu.cn/home.php?mod=task&do=apply&id={task_id}'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        if msg := soup.find('div', id='messagetext', class_='alert_info'):
+            if '任务申请成功' in msg.text:
+                return True, msg.text.strip()
+            else:
+                return False, msg.text.strip()
+
+    def finish_task(self, task_id):
+        """
+        完成任务，领取奖励
+
+        :param task_id: 任务id
+
+        :return
+            tuple:
+                - bool: 是否成功
+                - str: 提示信息
+        """
+        url = f'https://bbs.uestc.edu.cn/home.php?mod=task&do=draw&id={task_id}'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        if msg := soup.find('div', id='messagetext', class_='alert_info'):
+            if '任务已成功完成' in msg.text:
+                return True, msg.text.strip()
+            else:
+                return False, msg.text.strip()
+
+    def get_task_info(self, task_id):
+        """
+        获取任务详细信息
+
+        :param task_id: 任务id
+
+        :return:
+            dict: 任务详细信息
+                - name (str): 任务名称
+                - description (str): 任务描述
+                - reward (str): 任务奖励
+                - mission (str): 具体任务
+                - requirement (str): 申请此任务所需条件
+                - status (str): 任务状态 doing/done/applicable
+                - progress (str): 任务进度
+        :note:
+            progress: 只有进行中的任务会返回具体进度
+
+        """
+        url = f'https://bbs.uestc.edu.cn/home.php?mod=task&do=view&id={task_id}'
+        r = self.session.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        table = soup.find('div', class_='bm bw0').find('table')
+        rows = table.find_all('tr')
+        task_i = rows[0].find('td', class_='bbda')
+        name = task_i.find('h1', class_='xs2 ptm pbm').text.strip()
+        description = task_i.find_all('div')[-1].text.strip()
+        sub_table = rows[1].find('table')
+        sub_rows = sub_table.find_all('tr')
+        reward = sub_rows[0].find('td', class_='bbda').text.strip()
+        mission = sub_rows[1].find('td', class_='bbda').text.strip()
+        requirement = sub_rows[2].find('td', class_='bbda').text.strip()
+        img = rows[-2].find_all('img')[-1]
+        if img:
+            if img['src'] in ['static/image/task/cancel.gif', 'static/image/task/reward.gif']:
+                status = 'doing'
+                progress = rows[-2].find('span', id=f'csc_{task_id}').text.strip()
+            else:
+                status = 'applicable' if img['src'] == 'static/image/task/apply.gif' else 'not applicable'
+                progress = rows[-2].find('p', class_='xg2 mbn').text.strip()
+        else:
+            status = 'done'
+            progress = rows[-2].find('p', class_='xg2 mbn').text.strip()
+        return {
+            'name': name,
+            'description': description,
+            'reward': reward,
+            'mission': mission,
+            'requirement': requirement,
+            'status': status,
+            'progress': progress
+        }
