@@ -108,11 +108,12 @@ class WebAPI:
         :param update_formhash: 是否先更新formhash，默认True
         :return:
             bool: 成功 True，失败 False
-        :raise: HepanException: formhash过期，或帖子不存在/被删除/无权访问
+        :raise:
+            HepanException: pid与tid不匹配/formhash过期，或帖子不存在/被删除/无权访问
         """
         if update_formhash:  # 短时间大量评分时，建议手动更新formhash一次即可，不需要每次都更新
             self.update_formhash()
-        url = 'https://bbs.uestc.edu.cn/forum.php?mod=misc&action=rate&ratesubmit=yes&infloat=yes&inajax=1'
+        url = 'https://bbs.uestc.edu.cn/forum.php?mod=misc&action=rate&ratesubmit=yes&inajax=1'
         data = {
             'formhash': self.formhash,
             'tid': tid,
@@ -133,6 +134,29 @@ class WebAPI:
             else:
                 print(e)
                 return False
+
+    def comment(self, tid, pid, content, update_formhash=True):
+        """
+        点评帖子
+
+        :param tid: 帖子tid
+        :param pid: 帖子pid
+        :param content: 点评内容
+        :param update_formhash: 是否先更新formhash，默认True
+
+        :note:
+            由于服务器返回更新后整个网页html，无法直接得知是否成功，因此没有返回值
+        """
+        url = f'https://bbs.uestc.edu.cn/forum.php?mod=post&action=reply&comment=yes&tid={tid}&pid={pid}&commentsubmit=yes'
+        if update_formhash:  # 短时间大量点评时，建议手动更新formhash一次即可，不需要每次都更新
+            self.update_formhash()
+        data = {
+            'formhash': self.formhash,
+            'handlekey': 'comment',
+            'message': content,
+        }
+        r = self.session.post(url, data=data)
+        r.raise_for_status()
 
     def get_thread_info(self, tid):
         """
