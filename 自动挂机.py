@@ -22,7 +22,7 @@ while True:
         for username, api in account_dict.items():
             print(f'[{time.asctime()}] 更新用户 {username}')
             api.update_formhash()
-            time.sleep(freshInterval)
+        time.sleep(freshInterval)
     for username, api in account_dict.items():
         print(f'[{time.asctime()}] 重新登录用户 {username}')
         api.login()
