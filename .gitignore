@@ -1,5 +1,7 @@
 .idea/
 __pycache__/
+self*
 test.py
 main.py
 MobcentAPI.py
+config.py

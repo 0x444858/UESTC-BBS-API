@@ -44,7 +44,7 @@ class WebAPI:
             HepanException: 账号密码错误或账号被限制
         :warning: 连续登录失败5次会被限制登录，请仔细核对用户名和密码
         """
-        url = 'https://bbs.uestc.edu.cn/member.php?mod=logging&action=login&loginsubmit=yes&loginhash=Lcefp&inajax=1'
+        url = 'https://bbs.uestc.edu.cn/member.php?mod=logging&action=login&loginsubmit=yes&inajax=1'
         data = {'loginfield': 'username', 'username': self.username, 'password': self.password}
         try:
             r = self.session.post(url, data=data, timeout=10)
@@ -172,6 +172,7 @@ class WebAPI:
                 - reply_count (int): 回复总数
                 - author (str): 楼主用户名
                 - uid (int): 楼主uid
+                - create_time (int): 帖子创建时间
         :raise:
             HepanException: 帖子不存在/被删除，或无权访问
         """
@@ -191,7 +192,8 @@ class WebAPI:
                 'first_paragraph': thread['message'].split('\n')[0].strip(),
                 'reply_count': data['total'] - 1,
                 'author': thread['author'],
-                'uid': thread['author_id']
+                'uid': thread['author_id'],
+                'create_time': thread['dateline']
             }
             return thread_info
         except Exception as e:
@@ -268,7 +270,7 @@ class WebAPI:
         :return:
             list: 回复列表
                 - dict: 存储单个回复信息的字典
-                    - position (str): 楼层
+                    - position (int): 楼层
                     - pid (int): 回复pid
                     - author (str): 回复者用户名
                     - uid (int): 回复者uid
@@ -766,3 +768,27 @@ class WebAPI:
             'status': status,
             'progress': progress
         }
+
+    def edit_post(self, tid, pid, title, message, editingThread):
+        """
+        注意：此函数功能还不完善，目前仅适用于水区纯文本灌水帖
+        """
+        url = 'https://bbs.uestc.edu.cn/star/api/v1/post/edit'
+        payload = {
+            "thread_id": tid,
+            "post_id": pid,
+            "subject": title,
+            "message": message,
+            "format": 2,
+            "smileyoff": -1,
+            "usesig": 1,
+            "is_anonymous": False,
+            "type_id": 315,
+            "attachments": [],
+            "editingThread": editingThread
+        }
+        r = self.session.post(url, json=payload)
+        r = r.json()
+        if r['code']:
+            raise HepanException(r['message'])
+        return r
