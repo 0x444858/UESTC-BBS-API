@@ -182,7 +182,7 @@ class WebAPI:
             r.raise_for_status()
             data = r.json()
             if data['code'] != 0:
-                raise HepanException(f'{data['message']} tid={tid}')
+                raise HepanException(f'{data["message"]} tid={tid}')
             data = data['data']
             thread = data['rows'][0]
             thread_info = {
@@ -232,7 +232,7 @@ class WebAPI:
             r.raise_for_status()
             data = r.json()
             if data['code'] != 0:
-                raise HepanException(f'{data['message']} tid={tid}')
+                raise HepanException(f'{data["message"]} tid={tid}')
             data = data['data']
             hasNext = data['total'] > data['page'] * data['page_size']
             rows = data['rows']
